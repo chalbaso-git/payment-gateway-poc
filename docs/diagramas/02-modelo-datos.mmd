@@ -1,0 +1,52 @@
+erDiagram
+    ORDERS ||--o{ PAYMENT_ATTEMPTS : "tiene (1:N)"
+    PAYMENT_ATTEMPTS ||--o{ WEBHOOK_INBOX : "recibe notificaciones"
+    ORDERS ||--o{ OUTBOX_EVENTS : "genera eventos"
+
+    ORDERS {
+        uuid id PK
+        varchar customer_id
+        numeric amount
+        varchar currency
+        varchar status "CREATED, PAYMENT_PENDING, PAID, CANCELLED"
+        int version "Optimistic Locking"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PAYMENT_ATTEMPTS {
+        uuid id PK
+        uuid order_id FK
+        varchar provider
+        varchar provider_reference UK "ID en pasarela"
+        varchar idempotency_key UK "Clave única hacia pasarela"
+        varchar status "CREATED, INITIATING, PENDING, APPROVED, REJECTED, UNKNOWN"
+        numeric amount
+        text checkout_url
+        int version "Optimistic Locking"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    WEBHOOK_INBOX {
+        uuid id PK
+        varchar provider
+        varchar provider_event_id UK "Deduplicación estricta"
+        varchar provider_reference
+        varchar event_type
+        text payload
+        varchar processing_status "RECEIVED, PROCESSED, IGNORED"
+        timestamptz received_at
+        timestamptz processed_at
+    }
+
+    OUTBOX_EVENTS {
+        uuid id PK
+        varchar aggregate_type
+        uuid aggregate_id
+        varchar event_type
+        text payload
+        varchar status "PENDING, PUBLISHED"
+        timestamptz created_at
+        timestamptz published_at
+    }

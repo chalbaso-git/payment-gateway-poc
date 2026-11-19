@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    participant WK as Payment Worker
+    participant DB as PostgreSQL
+    participant PG as Pasarela Pagos
+    participant RC as Reconciliation Job
+
+    WK->>DB: UPDATE status = INITIATING
+    WK->>PG: POST /charges (Idempotency-Key: attemptId, Timeout=3s)
+    PG--xWK: ReadTimeoutException (Sin respuesta)
+
+    Note over WK,DB: NUNCA asumir rechazo ante un timeout
+    WK->>DB: UPDATE status = UNKNOWN (reason="GATEWAY_TIMEOUT")
+
+    loop Cada 2 minutos (ShedLock activo)
+        RC->>DB: SELECT * FROM payment_attempts WHERE status='UNKNOWN' AND updated_at < NOW() - 2m FOR UPDATE SKIP LOCKED
+        DB-->>RC: Retorna attemptId
+        RC->>PG: GET /charges?idempotency_key={attemptId}
+        PG-->>RC: 200 OK (status=APPROVED, provider_ref=tx_999)
+        RC->>DB: BEGIN TX: UPDATE PaymentAttempt(APPROVED) & Order(PAID)
+        DB-->>RC: COMMIT OK
+    end

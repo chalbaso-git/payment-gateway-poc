@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant API as API REST
+    participant DB as PostgreSQL
+    participant OB as Outbox + Broker
+    participant WK as Payment Worker
+    participant PG as Pasarela Pagos
+    participant WH as Webhook Receiver
+
+    C->>API: POST /orders (Header: Idempotency-Key)
+    API->>DB: BEGIN TX: Inserta Order, PaymentAttempt(CREATED) y OutboxEvent
+    DB-->>API: COMMIT OK
+    API-->>C: 202 Accepted (orderId, attemptId)
+
+    OB->>WK: Consume comando InitiatePayment
+    WK->>DB: UPDATE status = INITIATING
+    WK->>PG: POST /charges (Idempotency-Key: attemptId)
+    PG-->>WK: 201 Created (provider_ref, checkout_url, status=PENDING)
+    WK->>DB: UPDATE status = PENDING, checkout_url, provider_ref
+
+    C->>API: GET /orders/{orderId} (Polling / SSE)
+    API-->>C: 200 OK (status=PENDING, checkout_url)
+    C->>PG: Redirección al portal de pago y completa tarjeta
+
+    PG->>WH: POST /webhooks/payments (HMAC-SHA256, event_id=evt_1)
+    WH->>WH: Valida firma HMAC y timestamp
+    WH->>DB: INSERT INTO webhook_inbox ON CONFLICT DO NOTHING
+    WH-->>PG: 200 OK
+
+    Note over DB,WK: Procesamiento transaccional idempotente
+    WK->>DB: BEGIN TX: SELECT attempt FOR UPDATE
+    WK->>DB: Aplica State Machine -> PaymentAttempt(APPROVED) & Order(PAID)
+    WK->>DB: INSERT OutboxEvent(ORDER_PAID)
+    DB-->>WK: COMMIT OK

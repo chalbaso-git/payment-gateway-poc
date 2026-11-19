@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> CREATED : Orden creada
+    CREATED --> INITIATING : Worker toma comando
+    INITIATING --> PENDING : Pasarela retorna checkout_url
+    INITIATING --> APPROVED : Aprobación directa síncrona
+    INITIATING --> REJECTED : Rechazo inmediato (antifraude/fondos)
+    INITIATING --> UNKNOWN : Timeout / Error 5xx / Red caída
+
+    PENDING --> APPROVED : Webhook APPROVED / Conciliación
+    PENDING --> REJECTED : Webhook REJECTED / Expiración
+    PENDING --> UNKNOWN : Error consultando estado
+
+    UNKNOWN --> APPROVED : Webhook tardío / Conciliación exitosa
+    UNKNOWN --> REJECTED : Webhook tardío / Conciliación rechazada
+
+    APPROVED --> [*] : Estado Terminal (Inmutable)
+    REJECTED --> [*] : Estado Terminal (Permite nuevo intento en Orden)

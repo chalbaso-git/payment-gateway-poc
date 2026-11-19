@@ -1,0 +1,40 @@
+flowchart TB
+    Client["Cliente Web / App Móvil<br/>(Angular / Flutter)"]
+    Gateway["Pasarela de Pagos Externa<br/>(Proveedor Tercero)"]
+
+    subgraph CoreSystem["Sistema E-Commerce (Monolito Modular - Java 21 / Spring Boot)"]
+        API["API REST<br/>(Orders & Payments Controller)"]
+        WebhookEP["Webhook Receiver<br/>(Validación HMAC y Deduplicación)"]
+        
+        subgraph DomainModules["Módulos de Dominio"]
+            OrderMod["Módulo Órdenes"]
+            PayMod["Módulo Pagos & State Machine"]
+            ReconJob["Reconciliation Scheduler<br/>(ShedLock)"]
+        end
+
+        OutboxRelay["Outbox Publisher / Relay"]
+        BrokerConsumer["Async Workers<br/>(Payment Initiator & Webhook Processor)"]
+    end
+
+    DB[("PostgreSQL 16<br/>(Fuente de Verdad + Inbox/Outbox)")]
+    Broker[["Broker Durable<br/>(RabbitMQ / Kafka + DLQ)"]]
+    Obs["Observabilidad<br/>(OpenTelemetry / Prometheus / ELK)"]
+
+    Client -->|"1. POST /orders (Idempotency-Key)"| API
+    API --> OrderMod
+    OrderMod --> DB
+    
+    OutboxRelay -.->|"Polling SKIP LOCKED"| DB
+    OutboxRelay -->|"Publica comandos/eventos"| Broker
+    Broker -->|"Consume (At-Least-Once)"| BrokerConsumer
+    BrokerConsumer --> PayMod
+    PayMod --> DB
+    BrokerConsumer -->|"2. POST /charges (Timeout + Retry)"| Gateway
+
+    Gateway -->|"3. POST /webhooks/payments (HMAC)"| WebhookEP
+    WebhookEP -->|"INSERT ON CONFLICT DO NOTHING"| DB
+
+    ReconJob -->|"4. Busca UNKNOWN / PENDING"| DB
+    ReconJob -->|"5. GET /charges/{id}"| Gateway
+
+    CoreSystem -.->|"Logs JSON, Traces, Métricas"| Obs

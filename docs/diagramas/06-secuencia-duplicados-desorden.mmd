@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant PG as Pasarela Pagos
+    participant WH as Webhook Receiver
+    participant DB as PostgreSQL
+    participant WP as Webhook Processor
+
+    par Llegada simultánea del mismo evento (evt_100)
+        PG->>WH: POST /webhook (evt_100, status=APPROVED)
+        PG->>WH: POST /webhook (evt_100, status=APPROVED)
+    end
+
+    WH->>DB: Hilo 1: INSERT webhook_inbox ON CONFLICT DO NOTHING -> 1 fila
+    WH->>DB: Hilo 2: INSERT webhook_inbox ON CONFLICT DO NOTHING -> 0 filas
+    WH-->>PG: Hilo 1 y 2 responden 200 OK (Idempotente)
+
+    Note over WP,DB: Más tarde llega un evento retrasado (evt_099: PENDING)
+    PG->>WH: POST /webhook (evt_099, status=PENDING)
+    WH->>DB: INSERT webhook_inbox (evt_099) -> 1 fila (event_id nuevo)
+    WH-->>PG: 200 OK
+
+    WP->>DB: BEGIN TX: SELECT attempt FOR UPDATE (Actual: APPROVED)
+    WP->>WP: Evalúa transición APPROVED -> PENDING (Inválida)
+    WP->>DB: UPDATE webhook_inbox SET status='IGNORED' (No altera pago ni orden)
+    DB-->>WP: COMMIT OK
