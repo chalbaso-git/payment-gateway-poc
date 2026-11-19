@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,7 +85,7 @@ class WebhookConcurrencyTest {
         assertThat(processedCount).isEqualTo(1);
         assertThat(duplicateCount).isEqualTo(9);
 
-        Order updatedOrder = orderRepository.findById(orderId).orElseThrow();
+        Order updatedOrder = orderRepository.findById(Objects.requireNonNull(orderId)).orElseThrow();
         assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.PAID);
 
         // Solo debe haberse creado 1 evento en Outbox (no 10)

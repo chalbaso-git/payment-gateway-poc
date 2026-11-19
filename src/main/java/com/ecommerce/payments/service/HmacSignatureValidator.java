@@ -44,7 +44,7 @@ public class HmacSignatureValidator {
                     expectedSignature.getBytes(StandardCharsets.UTF_8),
                     signatureHeader.toLowerCase().getBytes(StandardCharsets.UTF_8)
             );
-        } catch (Exception _) {
+        } catch (Exception e) {
             return false;
         }
     }

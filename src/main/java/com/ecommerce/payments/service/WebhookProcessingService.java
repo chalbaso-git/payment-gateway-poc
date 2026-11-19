@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Objects;
 
 import java.util.UUID;
 
@@ -55,7 +56,7 @@ public class WebhookProcessingService {
         if (!transitioned) {
             log.warn("Transición fuera de orden o redundante ignorada: current={}, incoming={}, attemptId={}",
                     attempt.getStatus(), incomingStatus, attempt.getId());
-            inboxRepository.findById(inboxId).ifPresent(i -> i.markProcessed("IGNORED"));
+            inboxRepository.findById(Objects.requireNonNull(inboxId)).ifPresent(i -> i.markProcessed("IGNORED"));
             return WebhookResult.OUT_OF_ORDER_IGNORED;
         }
 
@@ -74,8 +75,8 @@ public class WebhookProcessingService {
             outboxRepository.save(outboxEvent);
             log.info("Pago aprobado y evento Outbox registrado: orderId={}, attemptId={}", order.getId(), attempt.getId());
         }
-
-        inboxRepository.findById(inboxId).ifPresent(i -> i.markProcessed("PROCESSED"));
+         
+        inboxRepository.findById(Objects.requireNonNull(inboxId)).ifPresent(i -> i.markProcessed("IGNORED"));
         return WebhookResult.PROCESSED;
     }
 
