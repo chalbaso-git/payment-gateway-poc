@@ -353,3 +353,5 @@ sequenceDiagram
 * **Diseño y Diagramación:** Mermaid.js (versión declarativa en texto plano para control de versiones en Git).
 * **Stack Tecnológico Referenciado y PoC:** Java 21, Spring Boot 3.3+, Spring Data JPA, PostgreSQL 16, Flyway, Testcontainers, Docker, RabbitMQ, Resilience4j, ShedLock.
 * **Asistencia de IA:** Se utilizaron herramientas de asistencia basadas en LLM (Gemini / GitHub Copilot) para validación de estructura documental, revisión de escenarios borde de concurrencia y generación de sintaxis de diagramas Mermaid. Toda la arquitectura, decisiones de diseño y criterios técnicos fueron validados, probados y ajustados por el autor.
+
+> **Alcance de la entrega (Diseño vs. PoC):** Este documento presenta la arquitectura completa recomendada para producción (incluyendo workers asíncronos, broker de mensajería y job de conciliación). El repositorio adjunto contiene una **Prueba de Concepto (PoC)** funcional que implementa y verifica mediante 31 pruebas automatizadas el núcleo crítico de consistencia: validación HMAC-SHA256, deduplicación atómica (Inbox), bloqueo pesimista, máquina de estados y persistencia de eventos (Outbox).

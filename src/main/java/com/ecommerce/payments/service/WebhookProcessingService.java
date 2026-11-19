@@ -76,7 +76,7 @@ public class WebhookProcessingService {
             log.info("Pago aprobado y evento Outbox registrado: orderId={}, attemptId={}", order.getId(), attempt.getId());
         }
          
-        inboxRepository.findById(Objects.requireNonNull(inboxId)).ifPresent(i -> i.markProcessed("IGNORED"));
+        inboxRepository.findById(Objects.requireNonNull(inboxId)).ifPresent(i -> i.markProcessed("PROCESSED"));
         return WebhookResult.PROCESSED;
     }
 
